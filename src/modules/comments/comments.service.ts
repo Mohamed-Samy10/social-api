@@ -1,8 +1,10 @@
 import { db } from '../../config/db';
 import { comments } from '../../db/schema/comments';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { likesService } from '../likes/likes.service';  
 import { likes } from '../../db/schema';
+
+const CURRENT_USER_ID = 1;
 export const commentsService = {
   async createForPost(
     userId: number,
@@ -46,14 +48,29 @@ export const commentsService = {
 
   async listForPost(postId: number) {
     const rows = await db
-      .select()
+      .select({
+        id: comments.id,
+        userId: comments.userId,
+        content: comments.content,
+        createdAt: comments.createdAt,
+        likesCount: sql<number>`count(${likes.id})`,
+        isLiked: sql<boolean>`
+          bool_or(${likes.userId} = 1)
+        `
+      })
       .from(comments)
+      .leftJoin(likes,
+        sql`${likes.likeableId} = ${comments.id} 
+        AND ${likes.likeableType} = 'comment'
+        `
+      )
       .where( 
         and(
           eq(comments.commentableId, postId),
           eq(comments.commentableType, 'post')
         )
       )
+      .groupBy(comments.id)
       .orderBy(comments.createdAt);
     return Promise.all(
       rows.map(async (comment) => {
@@ -61,7 +78,7 @@ export const commentsService = {
           comment.id
         , 'comment');
         const isLiked = await likesService.isLiked(
-          1,//assuming user id 1 for now
+          CURRENT_USER_ID,
           comment.id
         , 'comment');
         return {
@@ -75,14 +92,29 @@ export const commentsService = {
 
   async listReplies(commentId: number) {
     const rows = await db
-      .select()
+      .select({
+        id: comments.id,
+        userId: comments.userId,
+        content: comments.content,
+        createdAt: comments.createdAt,
+        likesCount: sql<number>`count(${likes.id})`,
+        isLiked: sql<boolean>`
+          bool_or(${likes.userId} = 1)
+        `
+      })
       .from(comments)
+      .leftJoin(likes,
+        sql`${likes.likeableId} = ${comments.id} 
+        AND ${likes.likeableType} = 'comment'
+        `
+      ) 
       .where(
         and(
           eq(comments.commentableId, commentId),
           eq(comments.commentableType, 'comment')
         )
       )
+      .groupBy(comments.id)
       .orderBy(comments.createdAt);
 
     return Promise.all(
@@ -93,7 +125,7 @@ export const commentsService = {
         );
 
         const isLiked = await likesService.isLiked(
-          1, // Assuming userId 1 for now
+          CURRENT_USER_ID,
           reply.id,
           'comment'
         );

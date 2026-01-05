@@ -1,7 +1,9 @@
 import { db } from '../../config/db';
-import { posts, users } from '../../db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { posts, users,likes } from '../../db/schema';
+import { eq, desc, sql } from 'drizzle-orm';
 import { likesService } from '../likes/likes.service';
+
+const CURRENT_USER_ID = 1;
 export const postsService = {
   async list(page = 1, limit = 10) {
     console.log('[SERVICE] posts.list', { page, limit });
@@ -15,10 +17,20 @@ export const postsService = {
       author: {
         id: users.id,
         name: users.name
-      }
+      },
+      likesCount: sql<number>`count(${likes.id})`,
+        isLiked: sql<boolean>`
+          bool_or(${likes.userId} = ${CURRENT_USER_ID})
+        `
     })
       .from(posts)
       .innerJoin(users, eq(users.id, posts.userId))
+      .leftJoin(likes,
+        sql`${likes.likeableId} = ${posts.id} 
+        AND ${likes.likeableType} = 'post'
+        `
+      )
+      .groupBy(posts.id, users.id)
       .orderBy(desc(posts.createdAt))
       .limit(limit)
       .offset(offset);
@@ -31,7 +43,7 @@ export const postsService = {
     );
 
     const isLiked = await likesService.isLiked(
-      1, // Assuming userId 1 for now
+      CURRENT_USER_ID, 
       post.id,
       'post'
     );
@@ -70,7 +82,7 @@ const likesCount = await likesService.count(
 );
 
 const isLiked = await likesService.isLiked(
-  1, // Assuming userId 1 for now
+  CURRENT_USER_ID,
   post.id,
   'post'
 );
