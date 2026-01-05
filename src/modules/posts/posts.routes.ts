@@ -13,9 +13,9 @@ export const postsRoutes = new Elysia({
     const data = await postsService.list(page, limit);
     return success(data, { page, limit });
   })
-  .get('/:id', async ({ params }) => {
+  .get('/:postId', async ({ params }) => {
     console.log('[POSTS] GET /posts');
-    const post = await postsService.findById(Number(params.id));
+    const post = await postsService.findById(Number(params.postId));
     if (!post) {
       return { status: 404, message: 'Post not found' };
     }
