@@ -2,6 +2,7 @@ import { Elysia } from 'elysia';
 // import { authRoutes } from './modules/auth/auth.routes';
 import { commentsRoutes } from './modules/comments/comments.routes';
 import { postsRoutes } from './modules/posts/posts.routes';
+import { likesRoutes } from './modules/likes/likes.routes';
 
 export const app = new Elysia({
   prefix: '/api/v1'
@@ -11,4 +12,5 @@ export const app = new Elysia({
   }))
   // .use(authRoutes)
   .use(postsRoutes)
-  .use(commentsRoutes);
+  .use(commentsRoutes)
+  .use(likesRoutes);
