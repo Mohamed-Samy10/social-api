@@ -67,10 +67,20 @@ export const postsService = {
         author: {
           id: users.id,
           name: users.name
-        }
+        },
+        likesCount: sql<number>`count(${likes.id})`,
+        isLiked: sql<boolean>`
+          bool_or(${likes.userId} = ${CURRENT_USER_ID})
+        `
       })
       .from(posts)
       .innerJoin(users, eq(users.id, posts.userId))
+      .leftJoin(likes,
+        sql`${likes.likeableId} = ${posts.id} 
+        AND ${likes.likeableType} = 'post'
+        `
+      )
+      .groupBy(posts.id, users.id)
       .where(eq(posts.id, id));
 
     const post = result[0];
