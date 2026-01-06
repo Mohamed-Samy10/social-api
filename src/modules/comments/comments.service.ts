@@ -1,11 +1,28 @@
 import { db } from '../../config/db';
 import { comments } from '../../db/schema/comments';
+import { likes, users } from '../../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { likesService } from '../likes/likes.service';  
-import { likes } from '../../db/schema';
 
-const CURRENT_USER_ID = 1;
+/* ===============================
+   Helpers
+================================ */
+
+function parseCursor(cursor?: string) {
+  if (!cursor) return null;
+
+  const [createdAt, id] = cursor.split('|');
+  return {
+    createdAt: new Date(createdAt),
+    id: Number(id)
+  };
+}
+
+/* ===============================
+   Service
+================================ */
+
 export const commentsService = {
+  /* -------- Create comment on post -------- */
   async createForPost(
     userId: number,
     postId: number,
@@ -21,9 +38,14 @@ export const commentsService = {
       })
       .returning();
 
-    return comment;
+    return {
+      ...comment,
+      likesCount: 0,
+      isLiked: false
+    };
   },
 
+  /* -------- Create reply on comment -------- */
   async createReply(
     userId: number,
     commentId: number,
@@ -46,96 +68,141 @@ export const commentsService = {
     };
   },
 
-  async listForPost(postId: number) {
+  /* -------- List comments for post (cursor pagination) -------- */
+  async listForPost(
+    postId: number,
+    limit = 10,
+    cursor?: string,
+    currentUserId = 1
+  ) {
+    const parsedCursor = parseCursor(cursor);
+
+    const conditions = [
+      eq(comments.commentableId, postId),
+      eq(comments.commentableType, 'post')
+    ];
+
+    if (parsedCursor) {
+        conditions.push(
+    sql`(${comments.createdAt} < ${parsedCursor.createdAt.toISOString()}::timestamp 
+      OR (${comments.createdAt} = ${parsedCursor.createdAt.toISOString()}::timestamp AND ${comments.id} < ${parsedCursor.id}))`
+  );
+}
+
     const rows = await db
       .select({
         id: comments.id,
-        userId: comments.userId,
         content: comments.content,
         createdAt: comments.createdAt,
+        author: {
+          id: users.id,
+          name: users.name
+        },
         likesCount: sql<number>`count(${likes.id})`,
         isLiked: sql<boolean>`
-          bool_or(${likes.userId} = 1)
+          coalesce(
+            bool_or(${likes.userId} = ${currentUserId}),
+            false
+          )
         `
       })
       .from(comments)
-      .leftJoin(likes,
-        sql`${likes.likeableId} = ${comments.id} 
-        AND ${likes.likeableType} = 'comment'
-        `
+      .innerJoin(users, eq(users.id, comments.userId))
+      .leftJoin(
+        likes,
+        sql`${likes.likeableId} = ${comments.id}
+            AND ${likes.likeableType} = 'comment'`
       )
-      .where( 
-        and(
-          eq(comments.commentableId, postId),
-          eq(comments.commentableType, 'post')
-        )
-      )
-      .groupBy(comments.id)
-      .orderBy(comments.createdAt);
-    return Promise.all(
-      rows.map(async (comment) => {
-        const likesCount = await likesService.count(
-          comment.id
-        , 'comment');
-        const isLiked = await likesService.isLiked(
-          CURRENT_USER_ID,
-          comment.id
-        , 'comment');
-        return {
-          ...comment,
-          likesCount,
-          isLiked
-        };
-      })
-    );
+      .where(and(...conditions))
+      .groupBy(comments.id, users.id, users.name)
+      .orderBy(
+  sql`${comments.createdAt} DESC`,
+  sql`${comments.id} DESC`
+)
+      .limit(limit + 1);
+
+    const hasNextPage = rows.length > limit;
+    const items = hasNextPage ? rows.slice(0, limit) : rows;
+    let nextCursor: string | null = null;
+
+    if (hasNextPage && items.length > 0) {
+      const lastItem = items.at(-1)!;
+      if (lastItem.createdAt) {
+        nextCursor = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+      } else {
+        nextCursor = `${lastItem.id}`;
+      }
+    }
+    return {
+      items,
+      nextCursor
+    };
   },
 
-  async listReplies(commentId: number) {
+  /* -------- List replies for comment (cursor pagination) -------- */
+  async listReplies(
+    commentId: number,
+    limit = 10,
+    cursor?: string,
+    currentUserId = 1
+  ) {
+    const parsedCursor = parseCursor(cursor);
+
+    const conditions = [
+      eq(comments.commentableId, commentId),
+      eq(comments.commentableType, 'comment')
+    ];
+
+    if (parsedCursor) {
+        conditions.push(
+    sql`(${comments.createdAt} < ${parsedCursor.createdAt.toISOString()}::timestamp 
+      OR (${comments.createdAt} = ${parsedCursor.createdAt.toISOString()}::timestamp AND ${comments.id} < ${parsedCursor.id}))`
+  );
+}
+
     const rows = await db
       .select({
-        id: comments.id,
-        userId: comments.userId,
+          id: comments.id,
         content: comments.content,
         createdAt: comments.createdAt,
         likesCount: sql<number>`count(${likes.id})`,
         isLiked: sql<boolean>`
-          bool_or(${likes.userId} = 1)
+          coalesce(
+            bool_or(${likes.userId} = ${currentUserId}),
+            false
+          )
         `
       })
       .from(comments)
-      .leftJoin(likes,
-        sql`${likes.likeableId} = ${comments.id} 
-        AND ${likes.likeableType} = 'comment'
-        `
-      ) 
-      .where(
-        and(
-          eq(comments.commentableId, commentId),
-          eq(comments.commentableType, 'comment')
-        )
+      .leftJoin(
+        likes,
+        sql`${likes.likeableId} = ${comments.id}
+            AND ${likes.likeableType} = 'comment'`
       )
+      .where(and(...conditions))
       .groupBy(comments.id)
-      .orderBy(comments.createdAt);
+      .orderBy(
+  sql`${comments.createdAt} DESC`,
+  sql`${comments.id} DESC`
+)
+      .limit(limit + 1);
 
-    return Promise.all(
-      rows.map(async (reply) => {
-        const likesCount = await likesService.count(
-          reply.id,
-          'comment'
-        );
+    const hasNextPage = rows.length > limit;
+    const items = hasNextPage ? rows.slice(0, limit) : rows;
+    let nextCursor: string | null = null;
 
-        const isLiked = await likesService.isLiked(
-          CURRENT_USER_ID,
-          reply.id,
-          'comment'
-        );
+if (hasNextPage && items.length > 0) {
+  const lastItem = items.at(-1)!;
 
-        return {
-          ...reply,
-          likesCount,
-          isLiked
-        };
-      })
-    );
+  if (lastItem.createdAt) {
+    nextCursor = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+  } else {
+    nextCursor = `${lastItem.id}`;
+  }
+}
+    return {
+      items,
+      nextCursor
+    };
   }
 };

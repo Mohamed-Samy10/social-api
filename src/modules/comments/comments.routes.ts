@@ -3,9 +3,14 @@ import { commentsService } from './comments.service';
 import { success } from '../../utils/response';
 
 export const commentsRoutes = new Elysia()
-  .get('/posts/:postId/comments', async ({ params }) => {
+  .get('/posts/:postId/comments', async ({ params, query}) => {
+    const postId = Number(params.postId);
+    const limit = Number(query.limit?? 10);
+    const cursor = query.cursor as string | undefined;
     const data = await commentsService.listForPost(
-      Number(params.postId)
+      postId,
+      limit,
+      cursor
     );
     return success(data);
   })
@@ -27,9 +32,11 @@ export const commentsRoutes = new Elysia()
     }
   )
 
-  .get('/comments/:commentId/replies', async ({ params }) => {
+  .get('/comments/:commentId/replies', async ({ params, query }) => {
     const data = await commentsService.listReplies(
-      Number(params.commentId)
+      Number(params.commentId),
+      Number(query.limit ?? 10),
+      query.cursor as string | undefined
     );
     return success(data);
   })
