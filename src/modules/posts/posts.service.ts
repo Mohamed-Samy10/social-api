@@ -3,14 +3,12 @@ import { posts, users,likes } from '../../db/schema';
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { likesService } from '../likes/likes.service';
 import { parseCursor } from '../comments/comments.service';
-const CURRENT_USER_ID = 1;
-
 
 export const postsService = {
   async list(
+    currentUserId:number,
     limit = 10,
     cursor?: string,
-    currentUserId = CURRENT_USER_ID,
   ) {
     const parsedCursor = parseCursor(cursor);
     const conditions = [];
@@ -71,56 +69,36 @@ export const postsService = {
 );  
   },
 
-  async findById(id: number) {
-    console.log('[SERVICE] posts.findById', { id });
-    const result = await db
-      .select({
-        id: posts.id,
-        content: posts.content,
-        createdAt: posts.createdAt,
-        author: {
-          id: users.id,
-          name: users.name
-        },
-        likesCount: sql<number>`count(${likes.id})`,
-        isLiked: sql<boolean>`
+async findById(postId: number, currentUserId: number) {
+  const result = await db
+    .select({
+      id: posts.id,
+      content: posts.content,
+      createdAt: posts.createdAt,
+      author: {
+        id: users.id,
+        name: users.name
+      },
+      likesCount: sql<number>`count(${likes.id})`,
+      isLiked: sql<boolean>`
         coalesce(
-          bool_or(${likes.userId} = ${CURRENT_USER_ID}),
+          bool_or(${likes.userId} = ${currentUserId}),
           false
         )
-        `
-      })
-      .from(posts)
-      .innerJoin(users, eq(users.id, posts.userId))
-      .leftJoin(likes,
-        sql`${likes.likeableId} = ${posts.id} 
-        AND ${likes.likeableType} = 'post'
-        `
-      )
-      .groupBy(posts.id, users.id)
-      .where(eq(posts.id, id));
+      `
+    })
+    .from(posts)
+    .innerJoin(users, eq(users.id, posts.userId))
+    .leftJoin(
+      likes,
+      sql`${likes.likeableId} = ${posts.id}
+          AND ${likes.likeableType} = 'post'`
+    )
+    .where(eq(posts.id, postId))
+    .groupBy(posts.id, users.id);
 
-    const post = result[0];
-if (!post) return null;
-
-const likesCount = await likesService.count(
-  post.id,
-  'post'
-);
-
-const isLiked = await likesService.isLiked(
-  CURRENT_USER_ID,
-  post.id,
-  'post'
-);
-
-return {
-  ...post,
-  likesCount,
-  isLiked
-};
-
-  },
+  return result[0] ?? null;
+},
 
   async create(userId: number, content: string) {
     const result = await db

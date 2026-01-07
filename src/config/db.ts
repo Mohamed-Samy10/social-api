@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import * as schema from '../db/schema/index';
 
 const pool = new Pool({
   host: 'localhost',
@@ -9,4 +10,4 @@ const pool = new Pool({
   database: 'social_db'
 });
 
-export const db = drizzle(pool);
+export const db = drizzle(pool , { schema });

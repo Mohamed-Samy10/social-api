@@ -1,29 +1,46 @@
 import { Elysia, t } from 'elysia';
 import { postsService } from './posts.service';
 import { success } from '../../utils/response';
+import { authGuard } from '../auth/auth.guard';
 
 export const postsRoutes = new Elysia({
   prefix: '/posts'
 })
-  .get('/', async ({ params,query }) => {
-    const limit = Number(query.limit?? 10);
+  .use(authGuard)
+  .get('/', async ({ user, query }) => {
+    const limit = Number(query.limit ?? 10);
     const cursor = query.cursor as string | undefined;
 
-    const data = await postsService.list(limit, cursor);
+    const data = await postsService.list(
+      user.id,
+      limit,
+      cursor
+    );
+
     return success(data, { limit, cursor });
   })
-  .get('/:postId', async ({ params }) => {
-    console.log('[POSTS] GET /posts');
-    const post = await postsService.findById(Number(params.postId));
+
+  .get('/:postId', async ({ user, params }) => {
+    const post = await postsService.findById(
+      Number(params.postId),
+      user.id
+    );
+
     if (!post) {
       return { status: 404, message: 'Post not found' };
     }
+
     return success(post);
   })
+
   .post(
     '/',
-    async ({ body }) => {
-      const post = await postsService.create(1, body.content);
+    async ({ user, body }) => {
+      const post = await postsService.create(
+        user.id,
+        body.content
+      );
+
       return success(post);
     },
     {
