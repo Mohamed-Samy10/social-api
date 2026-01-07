@@ -1,14 +1,26 @@
 import { db } from '../../config/db';
 import { posts, users,likes } from '../../db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql, and } from 'drizzle-orm';
 import { likesService } from '../likes/likes.service';
-
+import { parseCursor } from '../comments/comments.service';
 const CURRENT_USER_ID = 1;
-export const postsService = {
-  async list(page = 1, limit = 10) {
-    console.log('[SERVICE] posts.list', { page, limit });
-    const offset = (page - 1) * limit;
 
+
+export const postsService = {
+  async list(
+    limit = 10,
+    cursor?: string,
+    currentUserId = CURRENT_USER_ID,
+  ) {
+    const parsedCursor = parseCursor(cursor);
+    const conditions = [];
+    if (parsedCursor) {
+      conditions.push(
+        sql`(${posts.createdAt} < ${parsedCursor.createdAt.toISOString()}::timestamp
+        OR (${posts.createdAt} = ${parsedCursor.createdAt.toISOString()}::timestamp
+        AND ${posts.id} < ${parsedCursor.id}))`
+      );
+    }
     const rows = await db
     .select({
       id: posts.id,
@@ -19,8 +31,11 @@ export const postsService = {
         name: users.name
       },
       likesCount: sql<number>`count(${likes.id})`,
-        isLiked: sql<boolean>`
-          bool_or(${likes.userId} = ${CURRENT_USER_ID})
+      isLiked: sql<boolean>`
+        coalesce(
+          bool_or(${likes.userId} = ${currentUserId}),
+          false
+        )
         `
     })
       .from(posts)
@@ -30,30 +45,29 @@ export const postsService = {
         AND ${likes.likeableType} = 'post'
         `
       )
-      .groupBy(posts.id, users.id)
-      .orderBy(desc(posts.createdAt))
-      .limit(limit)
-      .offset(offset);
+      .where(
+        conditions.length ? and(...conditions) : undefined
+      )
 
-    return Promise.all(
-  rows.map(async (post) => {
-    const likesCount = await likesService.count(
-      post.id,
-      'post'
-    );
+      .groupBy(posts.id, users.id, users.name)
+      .orderBy(sql`${posts.createdAt} DESC`,
+        sql`${posts.id} DESC`)
+      .limit(limit+1)
+    const hasNextPage = rows.length > limit;
+    const items = hasNextPage ? rows.slice(0, limit) : rows;
 
-    const isLiked = await likesService.isLiked(
-      CURRENT_USER_ID, 
-      post.id,
-      'post'
-    );
+    let nextCursor: string | null = null;
+    if (hasNextPage && items.length > 0) {
+      const lastItem = items.at(-1)!;
+      if (lastItem.createdAt) {
+        nextCursor = `${lastItem.createdAt.toISOString()}|${lastItem.id}`;
+      } else {
+        nextCursor = `${lastItem.id}`;
+      }
+    }
+    
 
-    return {
-      ...post,
-      likesCount,
-      isLiked
-    };
-  })
+    return ({items, nextCursor}
 );  
   },
 
@@ -70,7 +84,10 @@ export const postsService = {
         },
         likesCount: sql<number>`count(${likes.id})`,
         isLiked: sql<boolean>`
-          bool_or(${likes.userId} = ${CURRENT_USER_ID})
+        coalesce(
+          bool_or(${likes.userId} = ${CURRENT_USER_ID}),
+          false
+        )
         `
       })
       .from(posts)

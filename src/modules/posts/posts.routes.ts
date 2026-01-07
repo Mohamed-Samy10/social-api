@@ -5,13 +5,12 @@ import { success } from '../../utils/response';
 export const postsRoutes = new Elysia({
   prefix: '/posts'
 })
-  .get('/', async ({ query }) => {
-    console.log('[POSTS] GET /posts'); 
-    const page = Number(query.page || 1);
-    const limit = Number(query.limit || 10);
+  .get('/', async ({ params,query }) => {
+    const limit = Number(query.limit?? 10);
+    const cursor = query.cursor as string | undefined;
 
-    const data = await postsService.list(page, limit);
-    return success(data, { page, limit });
+    const data = await postsService.list(limit, cursor);
+    return success(data, { limit, cursor });
   })
   .get('/:postId', async ({ params }) => {
     console.log('[POSTS] GET /posts');

@@ -7,7 +7,7 @@ import { eq, and, sql } from 'drizzle-orm';
    Helpers
 ================================ */
 
-function parseCursor(cursor?: string) {
+export function parseCursor(cursor?: string) {
   if (!cursor) return null;
 
   const [createdAt, id] = cursor.split('|');
