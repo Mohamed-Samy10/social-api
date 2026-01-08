@@ -1,13 +1,16 @@
 import { Elysia, t } from 'elysia';
 import { commentsService } from './comments.service';
 import { success } from '../../utils/response';
+import { authGuard } from '../auth/auth.guard';
 
 export const commentsRoutes = new Elysia()
-  .get('/posts/:postId/comments', async ({ params, query}) => {
+  .use(authGuard)
+  .get('/posts/:postId/comments', async ({ user,params, query }) => {
     const postId = Number(params.postId);
     const limit = Number(query.limit?? 10);
     const cursor = query.cursor as string | undefined;
     const data = await commentsService.listForPost(
+      user.id,
       postId,
       limit,
       cursor
@@ -17,9 +20,9 @@ export const commentsRoutes = new Elysia()
 
   .post(
     '/posts/:postId/comments',
-    async ({ params, body }) => {
+    async ({ params, body, user }) => {
       const comment = await commentsService.createForPost(
-        1,
+        user.id,
         Number(params.postId),
         body.content
       );
@@ -32,8 +35,9 @@ export const commentsRoutes = new Elysia()
     }
   )
 
-  .get('/comments/:commentId/replies', async ({ params, query }) => {
+  .get('/comments/:commentId/replies', async ({ user,params, query }) => {
     const data = await commentsService.listReplies(
+      user.id,
       Number(params.commentId),
       Number(query.limit ?? 10),
       query.cursor as string | undefined
@@ -43,9 +47,9 @@ export const commentsRoutes = new Elysia()
 
   .post(
     '/comments/:commentId/replies',
-    async ({ params, body }) => {
+    async ({ user, params, body }) => {
       const reply = await commentsService.createReply(
-        1,
+        user.id,
         Number(params.commentId),
         body.content
       );

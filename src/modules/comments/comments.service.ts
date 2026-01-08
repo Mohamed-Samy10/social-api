@@ -70,10 +70,11 @@ export const commentsService = {
 
   /* -------- List comments for post (cursor pagination) -------- */
   async listForPost(
+    currentUserId : number,
     postId: number,
     limit = 10,
     cursor?: string,
-    currentUserId = 1
+
   ) {
     const parsedCursor = parseCursor(cursor);
 
@@ -141,10 +142,10 @@ export const commentsService = {
 
   /* -------- List replies for comment (cursor pagination) -------- */
   async listReplies(
+    currentUserId: number,
     commentId: number,
     limit = 10,
     cursor?: string,
-    currentUserId = 1
   ) {
     const parsedCursor = parseCursor(cursor);
 

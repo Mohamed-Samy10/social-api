@@ -1,14 +1,15 @@
 import { Elysia, t } from 'elysia';
 import { likesService } from './likes.service';
 import { success } from '../../utils/response';
+import { authGuard } from '../auth/auth.guard';
 
 export const likesRoutes = new Elysia()
-
+  .use(authGuard)
   .post(
     '/posts/:postId/likes',
-    async ({ params }) => {
+    async ({ params, user }) => {
       const like = await likesService.like(
-        1,
+        user.id,
         Number(params.postId),
         'post'
       );
@@ -16,9 +17,9 @@ export const likesRoutes = new Elysia()
     }
   )
 
-  .delete('/posts/:postId/likes', async ({ params }) => {
+  .delete('/posts/:postId/likes', async ({ params, user }) => {
     await likesService.unlike(
-      1,
+      user.id,
       Number(params.postId),
       'post'
     );
@@ -27,9 +28,9 @@ export const likesRoutes = new Elysia()
 
   .post(
     '/comments/:commentId/likes',
-    async ({ params }) => {
+    async ({ params, user }) => {
       const like = await likesService.like(
-        1,
+        user.id,
         Number(params.commentId),
         'comment'
       );
@@ -37,9 +38,9 @@ export const likesRoutes = new Elysia()
     }
   )
 
-  .delete('/comments/:commentId/likes', async ({ params }) => {
+  .delete('/comments/:commentId/likes', async ({ params, user }) => {
     await likesService.unlike(
-      1,
+      user.id,
       Number(params.commentId),
       'comment'
     );

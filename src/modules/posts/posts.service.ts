@@ -1,7 +1,6 @@
 import { db } from '../../config/db';
 import { posts, users,likes } from '../../db/schema';
-import { eq, desc, sql, and } from 'drizzle-orm';
-import { likesService } from '../likes/likes.service';
+import { eq, sql, and } from 'drizzle-orm';
 import { parseCursor } from '../comments/comments.service';
 
 export const postsService = {
