@@ -64,8 +64,7 @@ export const postsService = {
     }
     
 
-    return ({items, nextCursor}
-);  
+    return {items, nextCursor};
   },
 
 async findById(postId: number, currentUserId: number) {

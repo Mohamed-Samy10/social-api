@@ -11,13 +11,13 @@ export const postsRoutes = new Elysia({
     const limit = Number(query.limit ?? 10);
     const cursor = query.cursor as string | undefined;
 
-    const data = await postsService.list(
+    const { items, nextCursor } = await postsService.list(
       user.id,
       limit,
       cursor
     );
 
-    return success(data, { limit, cursor });
+    return success(items, { limit, cursor: nextCursor });
   })
 
   .get('/:postId', async ({ user, params }) => {

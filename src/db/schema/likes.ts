@@ -27,7 +27,6 @@ export const likes = pgTable(
     createdAt: timestamp('created_at').defaultNow()
   },
   (table) => ({
-    // 👇 يمنع نفس اليوزر يعمل لايك مرتين
     uniqueLike: uniqueIndex('unique_like').on(
       table.userId,
       table.likeableId,

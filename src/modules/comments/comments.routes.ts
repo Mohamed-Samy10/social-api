@@ -9,13 +9,13 @@ export const commentsRoutes = new Elysia()
     const postId = Number(params.postId);
     const limit = Number(query.limit?? 10);
     const cursor = query.cursor as string | undefined;
-    const data = await commentsService.listForPost(
+    const { items, nextCursor } = await commentsService.listForPost(
       user.id,
       postId,
       limit,
       cursor
     );
-    return success(data);
+    return success(items, { limit, nextCursor });
   })
 
   .post(
@@ -36,13 +36,16 @@ export const commentsRoutes = new Elysia()
   )
 
   .get('/comments/:commentId/replies', async ({ user,params, query }) => {
-    const data = await commentsService.listReplies(
+    const commentId = Number(params.commentId);
+    const limit = Number(query.limit ?? 10);
+    const cursor = query.cursor as string | undefined;
+    const { items, nextCursor } = await commentsService.listReplies(
       user.id,
-      Number(params.commentId),
-      Number(query.limit ?? 10),
-      query.cursor as string | undefined
+      commentId,
+      limit,
+      cursor
     );
-    return success(data);
+    return success(items, { limit, nextCursor });
   })
 
   .post(
