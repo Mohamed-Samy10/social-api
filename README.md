@@ -189,19 +189,18 @@ GET /api/v1/posts?limit=10&cursor=2024-01-10T12:00:00Z|5
 Authorization: Bearer <token>
 
 # Response
-```
 {
-"data": [
+  "data": [
     {
-        "id": 20,
-        "content": "Hello World",
-        "createdAt": "2026-01-09T18:11:54.515Z",
-        "author": {
-            "id": 4,
-            "name": "Muhammad Samy"
-        },
-        "likesCount": "0",
-        "isLiked": false
+    "id": 20,
+    "content": "Hello World",
+    "createdAt": "2026-01-09T18:11:54.515Z",
+    "author": {
+        "id": 4,
+        "name": "Muhammad Samy"
+    },
+    "likesCount": "0",
+    "isLiked": false
     }
 ],
 "meta": {
@@ -336,6 +335,7 @@ social-api/
 │   ├── utils/               # Utility functions
 │   │   ├── jwt.ts           # JWT helpers
 │   │   └── response.ts      # Response formatters
+│   │   └── common.schema.ts # Shared zod schemas
 │   │
 │   ├── types/               # TypeScript type definitions
 │   │   └── elysia.d.ts
@@ -442,7 +442,8 @@ body: t.Object({
 ✅ Database schema design  
 ✅ SQL query optimization  
 ✅ Pagination strategies  
-✅ Simple Error handling  
+✅ Simple Error handling
+✅ Zod validation  
 
 ### TypeScript/JavaScript
 ✅ Advanced TypeScript patterns  
@@ -473,9 +474,6 @@ GET /api/v1/health
 ```
 
 ## 📈 Future Enhancements
-
-- [ ] Rate limiting
-- [ ] Apply zod validation for all modules not just Auth
 - [ ] Improve error handling
 - [ ] Soft deletes
 - [ ] User profiles and follow system

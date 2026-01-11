@@ -2,65 +2,67 @@ import { Elysia, t } from 'elysia';
 import { commentsService } from './comments.service';
 import { success } from '../../utils/response';
 import { authGuard } from '../auth/auth.guard';
+import { createCommentSchema, listCommentsQuerySchema } from './comments.schema';
+import { idParamSchema } from '../../utils/common.schema';
 
 export const commentsRoutes = new Elysia()
   .use(authGuard)
   .get('/posts/:postId/comments', async ({ user,params, query }) => {
-    const postId = Number(params.postId);
-    const limit = Number(query.limit?? 10);
-    const cursor = query.cursor as string | undefined;
-    const { items, nextCursor } = await commentsService.listForPost(
+    const { items, nextCursor } = await commentsService.list(
       user.id,
-      postId,
-      limit,
-      cursor
+     params.postId,
+      'post',
+      query
     );
-    return success(items, { limit, nextCursor });
+    return success(items, { limit: query.limit, nextCursor });
+  }, {
+    params: idParamSchema('postId'),
+    query: listCommentsQuerySchema
   })
 
   .post(
     '/posts/:postId/comments',
     async ({ params, body, user }) => {
-      const comment = await commentsService.createForPost(
+      const comment = await commentsService.create(
         user.id,
-        Number(params.postId),
-        body.content
+        params.postId,
+        'post',
+        body
       );
       return success(comment);
     },
     {
-      body: t.Object({
-        content: t.String({ minLength: 1 })
+      params: idParamSchema('postId'),
+      body: createCommentSchema
       })
-    }
-  )
 
   .get('/comments/:commentId/replies', async ({ user,params, query }) => {
-    const commentId = Number(params.commentId);
-    const limit = Number(query.limit ?? 10);
-    const cursor = query.cursor as string | undefined;
-    const { items, nextCursor } = await commentsService.listReplies(
+  
+    const { items, nextCursor } = await commentsService.list(
       user.id,
-      commentId,
-      limit,
-      cursor
+      params.commentId,
+      'comment',
+      query
     );
-    return success(items, { limit, nextCursor });
+    return success(items, { limit:query.limit, nextCursor });
+  }, {
+    params:idParamSchema('commentId'),
+    query: listCommentsQuerySchema
   })
 
   .post(
     '/comments/:commentId/replies',
     async ({ user, params, body }) => {
-      const reply = await commentsService.createReply(
+      const reply = await commentsService.create(
         user.id,
-        Number(params.commentId),
-        body.content
+        params.commentId,
+        'comment',
+        body
       );
       return success(reply);
     },
     {
-      body: t.Object({
-        content: t.String({ minLength: 1 })
-      })
-    }
-  );
+      params:idParamSchema("commentId"),
+      body:createCommentSchema
+
+      });
