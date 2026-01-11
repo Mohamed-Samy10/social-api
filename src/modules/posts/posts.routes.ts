@@ -2,14 +2,15 @@ import { Elysia, t } from 'elysia';
 import { postsService } from './posts.service';
 import { success } from '../../utils/response';
 import { authGuard } from '../auth/auth.guard';
+import {createPostSchema, listPostsSchema, postIdParamSchema} from './posts.schema';
+
+
 
 export const postsRoutes = new Elysia({
   prefix: '/posts'
 })
   .use(authGuard)
-  .get('/', async ({ user, query }) => {
-    const limit = Number(query.limit ?? 10);
-    const cursor = query.cursor as string | undefined;
+  .get('/', async ({ user, query:{limit, cursor} }) => {
 
     const { items, nextCursor } = await postsService.list(
       user.id,
@@ -17,12 +18,14 @@ export const postsRoutes = new Elysia({
       cursor
     );
 
-    return success(items, { limit, cursor: nextCursor });
+    return success(items, { limit, nextCursor });
+  }, {
+    query: listPostsSchema
   })
 
   .get('/:postId', async ({ user, params }) => {
     const post = await postsService.findById(
-      Number(params.postId),
+      params.postId,
       user.id
     );
 
@@ -31,6 +34,8 @@ export const postsRoutes = new Elysia({
     }
 
     return success(post);
+  }, {
+    params: postIdParamSchema
   })
 
   .post(
@@ -38,14 +43,12 @@ export const postsRoutes = new Elysia({
     async ({ user, body }) => {
       const post = await postsService.create(
         user.id,
-        body.content
+        body
       );
 
       return success(post);
     },
     {
-      body: t.Object({
-        content: t.String({ minLength: 1 })
-      })
+      body: createPostSchema
     }
   );

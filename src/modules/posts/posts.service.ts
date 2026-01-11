@@ -2,7 +2,7 @@ import { db } from '../../config/db';
 import { posts, users,likes } from '../../db/schema';
 import { eq, sql, and } from 'drizzle-orm';
 import { parseCursor } from '../comments/comments.service';
-
+import { CreatePostInput } from './posts.schema';
 export const postsService = {
   async list(
     currentUserId:number,
@@ -98,10 +98,10 @@ async findById(postId: number, currentUserId: number) {
   return result[0] ?? null;
 },
 
-  async create(userId: number, content: string) {
+  async create(userId: number, input: CreatePostInput) {
     const result = await db
       .insert(posts)
-      .values({ userId, content })
+      .values({ userId, content: input.content })
       .returning({
         id: posts.id,
         content: posts.content,
@@ -110,7 +110,7 @@ async findById(postId: number, currentUserId: number) {
 
     return {...result[0],
     likesCount: 0,
-  isLiked: false
+    isLiked: false
     };
   }
 };

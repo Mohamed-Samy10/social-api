@@ -206,7 +206,7 @@ Authorization: Bearer <token>
 ],
 "meta": {
     "limit": 1,
-    "cursor": "2026-01-09T18:11:54.515Z|20"
+    "nextCursor": "2026-01-09T18:11:54.515Z|20"
 },
 "errors": null
 }
